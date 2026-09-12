@@ -1,0 +1,3 @@
+- Dia: 10/09.
+- Etapas e comandos executados com resultados: instalação Node v24.21.0; npm install (202 pacotes, 10 vuln, scripts bloqueados); fixes no prisma/schema.prisma (3 back-relations: Project.deliveries, Person.assignedBacklogItems, Person.notificationsSent []) + npx prisma generate OK; fixes de typecheck (project-membership.ts, next-auth.d.ts) → tsc --noEmit limpo; correções de testes (D05 reescrito, guarda de destinatário vazio em notification.ts, asserção A08) → vitest run 107/107 passando (20 arquivos).
+- Pendências/Fase 4 nova: adapters Prisma + gateways Google.

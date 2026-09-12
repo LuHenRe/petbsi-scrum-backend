@@ -1,0 +1,3 @@
+- Dias: 07/09 (documentação inicial), 08/09 (requisitos), 09/09 (ajustes casos de uso), 10/09 (scaffold).
+- Entregas: codigo-petbsi/ (package.json, tsconfig, next.config, vitest config, vite carregado via tsx), prisma/schema.prisma, src/server/env.ts, auth-options.ts, authorization/, src/types/next-auth.d.ts, páginas placeholder (app/).
+- Decisões: separação app/ (apresentação) × src/ (código), domínio independente de framework/ORM.

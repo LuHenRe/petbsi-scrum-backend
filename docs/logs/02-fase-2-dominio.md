@@ -1,0 +1,3 @@
+- Dia: 10/09.
+- Entregas: value objects (shared/), entidades por agregado (project, people, backlog, workflow, sprint, delivery, blocker, integration), barris de exportação por agregado. Tests tests/unit/ D01–D12 (9 arquivos).
+- Decisões: linguagem ubíqua pt-br, imutabilidade, VO com validação (EmailAddress, DateRange, WipLimit…), auto-invariantes rejeitadas no create/métodos.

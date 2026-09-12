@@ -1,0 +1,5 @@
+- Tabela de fases (nome, objetivo, dias de trabalho, status) e mapa de arquivos-fonte.
+- Linha do tempo consolidada: 07/09 docs base → 08/09 requisitos → 09/09 casos de uso → 10/09 implementação codigo-petbsi + validação.
+- Próximos passos e pendências gerais (.env ausente, next build não validado, Fase 4 adapters pendente).
+- 05-revisao-hardening.md: diagnóstico completo das problemáticas (domínio, aplicação, ports×schema, testes, infra).
+- 06-plano-correcoes-hardening.md: decisões D1–D4 e plano Etapas 0–7 para as correções.

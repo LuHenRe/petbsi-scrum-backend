@@ -1,0 +1,1 @@
+export { ExternalFileReference } from "@/domain/shared/external-file-reference"

@@ -1,0 +1,416 @@
+// Prisma Schema — Sistema de Gestão Ágil PETBSI
+// Baseado em: docs/especificao-de-software/05-modelo-de-dados.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// PROJETO
+// ============================================================
+
+model Project {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  productGoals       ProductGoal[]
+  workFronts         WorkFront[]
+  pairs              Pair[]
+  memberships        ProjectMembership[]
+  sprints            Sprint[]
+  backlogItems       BacklogItem[]
+  workflowColumns    WorkflowColumn[]
+  deadlines          Deadline[]
+  deliveries         Delivery[]
+  notifications      Notification[]
+  calendarEvents     CalendarEvent[]
+  integrationConnections IntegrationConnection[]
+  auditEvents        AuditEvent[]
+
+  @@map("projects")
+}
+
+model ProductGoal {
+  id        String   @id @default(uuid()) @db.Uuid
+  projectId String   @map("project_id") @db.Uuid
+  statement String
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("product_goals")
+}
+
+model WorkFront {
+  id          String  @id @default(uuid()) @db.Uuid
+  projectId   String  @map("project_id") @db.Uuid
+  name        String
+  description String  @default("")
+  active      Boolean @default(true)
+
+  project         Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  memberships     ProjectMembership[]
+  backlogItems    BacklogItem[]
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@map("work_fronts")
+}
+
+// ============================================================
+// PESSOAS E PAPÉIS
+// ============================================================
+
+model Person {
+  id          String   @id @default(uuid()) @db.Uuid
+  displayName String   @map("display_name")
+  email       String
+  authSubject String?  @map("auth_subject")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  memberships        ProjectMembership[]
+  blockersReported   Blocker[]           @relation("ReportedBy")
+  blockersResolved   Blocker[]           @relation("ResolvedBy")
+  stateChanges       WorkItemStateChange[]
+  assignedBacklogItems BacklogItem[]
+  notificationsSent  Notification[]       @relation("CreatedBy")
+  notificationRecipients NotificationRecipient[]
+  auditEvents        AuditEvent[]
+  attachments        Attachment[]        @relation("UploadedBy")
+
+  @@unique([email])
+  @@index([authSubject])
+  @@map("people")
+}
+
+model Pair {
+  id            String  @id @default(uuid()) @db.Uuid
+  projectId     String  @map("project_id") @db.Uuid
+  name          String
+  responsibility String @default("")
+  active        Boolean @default(true)
+
+  project     Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  memberships ProjectMembership[]
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@map("pairs")
+}
+
+model ProjectMembership {
+  id        String   @id @default(uuid()) @db.Uuid
+  projectId String   @map("project_id") @db.Uuid
+  personId  String   @map("person_id") @db.Uuid
+  frontId   String   @map("front_id") @db.Uuid
+  pairId    String?  @map("pair_id") @db.Uuid
+  role      String
+  startsOn  DateTime? @map("starts_on") @db.Date
+  endsOn    DateTime? @map("ends_on") @db.Date
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  person  Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
+  front   WorkFront @relation(fields: [frontId], references: [id], onDelete: Cascade)
+  pair    Pair?   @relation(fields: [pairId], references: [id], onDelete: SetNull)
+
+  @@unique([projectId, personId, role])
+  @@index([projectId, personId, role])
+  @@map("project_memberships")
+}
+
+// ============================================================
+// SPRINT E PRODUCT BACKLOG
+// ============================================================
+
+model Sprint {
+  id        String    @id @default(uuid()) @db.Uuid
+  projectId String    @map("project_id") @db.Uuid
+  goal      String
+  startsOn  DateTime  @map("starts_on") @db.Date
+  endsOn    DateTime  @map("ends_on") @db.Date
+  status    String    @default("DRAFT")
+
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sprintItems SprintItem[]
+  deliveries  Delivery[]
+
+  @@index([projectId, status])
+  @@map("sprints")
+}
+
+model BacklogItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  projectId   String   @map("project_id") @db.Uuid
+  frontId     String   @map("front_id") @db.Uuid
+  columnId    String   @map("column_id") @db.Uuid
+  title       String
+  description String?  @db.Text
+  priority    String   @default("MEDIUM")
+  status      String   @default("BACKLOG")
+  assigneeId  String?  @map("assignee_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  project       Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  front         WorkFront            @relation(fields: [frontId], references: [id], onDelete: Cascade)
+  column        WorkflowColumn       @relation(fields: [columnId], references: [id], onDelete: Restrict)
+  assignee      Person?              @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  sprintItems   SprintItem[]
+  stateChanges  WorkItemStateChange[]
+  blockers      Blocker[]
+  attachments   Attachment[]
+  deliveryItems DeliveryItem[]
+
+  @@index([projectId, status, frontId])
+  @@index([columnId])
+  @@map("backlog_items")
+}
+
+model SprintItem {
+  sprintId      String @map("sprint_id") @db.Uuid
+  backlogItemId String @map("backlog_item_id") @db.Uuid
+  orderIndex    Int    @map("order_index")
+
+  sprint      Sprint      @relation(fields: [sprintId], references: [id], onDelete: Cascade)
+  backlogItem BacklogItem @relation(fields: [backlogItemId], references: [id], onDelete: Cascade)
+
+  @@id([sprintId, backlogItemId])
+  @@index([sprintId, orderIndex])
+  @@map("sprint_items")
+}
+
+// ============================================================
+// FLUXO KANBAN
+// ============================================================
+
+model WorkflowColumn {
+  id        String  @id @default(uuid()) @db.Uuid
+  projectId String  @map("project_id") @db.Uuid
+  name      String
+  wipLimit  Int?    @map("wip_limit")
+  orderIndex Int    @map("order_index")
+  active    Boolean @default(true)
+
+  project           Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  backlogItems      BacklogItem[]
+  stateChangesFrom  WorkItemStateChange[] @relation("FromColumn")
+  stateChangesTo    WorkItemStateChange[] @relation("ToColumn")
+
+  @@unique([projectId, name])
+  @@index([projectId, orderIndex])
+  @@map("workflow_columns")
+}
+
+model WorkItemStateChange {
+  id             String   @id @default(uuid()) @db.Uuid
+  backlogItemId  String   @map("backlog_item_id") @db.Uuid
+  fromColumnId   String   @map("from_column_id") @db.Uuid
+  toColumnId     String   @map("to_column_id") @db.Uuid
+  changedBy      String   @map("changed_by") @db.Uuid
+  reason         String?
+  changedAt      DateTime @default(now()) @map("changed_at")
+
+  backlogItem BacklogItem   @relation(fields: [backlogItemId], references: [id], onDelete: Cascade)
+  fromColumn  WorkflowColumn @relation("FromColumn", fields: [fromColumnId], references: [id], onDelete: Restrict)
+  toColumn    WorkflowColumn @relation("ToColumn", fields: [toColumnId], references: [id], onDelete: Restrict)
+  actor       Person        @relation(fields: [changedBy], references: [id], onDelete: Restrict)
+
+  @@index([backlogItemId, changedAt])
+  @@map("work_item_state_changes")
+}
+
+// ============================================================
+// BLOQUEIOS
+// ============================================================
+
+model Blocker {
+  id             String    @id @default(uuid()) @db.Uuid
+  backlogItemId  String    @map("backlog_item_id") @db.Uuid
+  reportedBy     String    @map("reported_by") @db.Uuid
+  resolvedBy     String?   @map("resolved_by") @db.Uuid
+  description    String    @db.Text
+  status         String    @default("OPEN")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  resolvedAt     DateTime? @map("resolved_at")
+
+  backlogItem BacklogItem @relation(fields: [backlogItemId], references: [id], onDelete: Cascade)
+  reporter    Person      @relation("ReportedBy", fields: [reportedBy], references: [id], onDelete: Restrict)
+  resolver    Person?     @relation("ResolvedBy", fields: [resolvedBy], references: [id], onDelete: SetNull)
+
+  @@index([backlogItemId, status])
+  @@map("blockers")
+}
+
+// ============================================================
+// ENTREGAS E PRAZOS
+// ============================================================
+
+model Delivery {
+  id           String    @id @default(uuid()) @db.Uuid
+  projectId    String    @map("project_id") @db.Uuid
+  sprintId     String?   @map("sprint_id") @db.Uuid
+  title        String
+  description  String?   @db.Text
+  status       String    @default("PLANNED")
+  completedOn  DateTime? @map("completed_on") @db.Date
+
+  project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sprint      Sprint?        @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+  items       DeliveryItem[]
+  attachments Attachment[]
+
+  @@index([projectId, status, completedOn])
+  @@map("deliveries")
+}
+
+model DeliveryItem {
+  deliveryId    String @map("delivery_id") @db.Uuid
+  backlogItemId String @map("backlog_item_id") @db.Uuid
+
+  delivery    Delivery    @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  backlogItem BacklogItem @relation(fields: [backlogItemId], references: [id], onDelete: Cascade)
+
+  @@id([deliveryId, backlogItemId])
+  @@map("delivery_items")
+}
+
+model Deadline {
+  id        String   @id @default(uuid()) @db.Uuid
+  projectId String   @map("project_id") @db.Uuid
+  title     String
+  dueAt     DateTime @map("due_at")
+  status    String   @default("PENDING")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, dueAt])
+  @@map("deadlines")
+}
+
+// ============================================================
+// INTEGRAÇÕES
+// ============================================================
+
+model Attachment {
+  id             String  @id @default(uuid()) @db.Uuid
+  backlogItemId  String? @map("backlog_item_id") @db.Uuid
+  deliveryId     String? @map("delivery_id") @db.Uuid
+  uploadedBy     String? @map("uploaded_by") @db.Uuid
+  provider       String  @default("google_drive")
+  externalFileId String  @map("external_file_id")
+  fileName       String  @map("file_name")
+  mimeType       String  @map("mime_type")
+  sizeBytes      BigInt  @map("size_bytes")
+  viewUrl        String? @map("view_url")
+  status         String  @default("PENDING")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  backlogItem BacklogItem? @relation(fields: [backlogItemId], references: [id], onDelete: SetNull)
+  delivery    Delivery?    @relation(fields: [deliveryId], references: [id], onDelete: SetNull)
+  uploader    Person?      @relation("UploadedBy", fields: [uploadedBy], references: [id], onDelete: SetNull)
+
+  @@unique([provider, externalFileId])
+  @@index([backlogItemId])
+  @@index([deliveryId])
+  @@map("attachments")
+}
+
+model Notification {
+  id             String   @id @default(uuid()) @db.Uuid
+  projectId      String   @map("project_id") @db.Uuid
+  createdBy      String   @map("created_by") @db.Uuid
+  provider       String   @default("gmail")
+  subject        String
+  body           String   @db.Text
+  status         String   @default("DRAFT")
+  idempotencyKey String?  @map("idempotency_key")
+  sentAt         DateTime? @map("sent_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  project    Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  actor      Person                  @relation("CreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
+  recipients NotificationRecipient[]
+
+  @@unique([idempotencyKey])
+  @@index([projectId, status, createdAt])
+  @@map("notifications")
+}
+
+model NotificationRecipient {
+  notificationId   String @map("notification_id") @db.Uuid
+  personId         String @map("person_id") @db.Uuid
+  deliveryStatus   String @default("PENDING") @map("delivery_status")
+  providerMessageId String? @map("provider_message_id")
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  person       Person       @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@id([notificationId, personId])
+  @@map("notification_recipients")
+}
+
+model CalendarEvent {
+  id              String    @id @default(uuid()) @db.Uuid
+  projectId       String    @map("project_id") @db.Uuid
+  deadlineId      String?   @map("deadline_id") @db.Uuid
+  externalEventId String?   @map("external_event_id")
+  eventType       String    @map("event_type")
+  title           String
+  startsAt        DateTime  @map("starts_at")
+  endsAt          DateTime  @map("ends_at")
+  syncStatus      String    @default("LOCAL") @map("sync_status")
+  lastSyncedAt    DateTime? @map("last_synced_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, syncStatus])
+  @@map("calendar_events")
+}
+
+model IntegrationConnection {
+  id                String    @id @default(uuid()) @db.Uuid
+  projectId         String    @map("project_id") @db.Uuid
+  provider          String
+  externalAccountId String?   @map("external_account_id")
+  status            String    @default("DISCONNECTED")
+  scopesHash        String?   @map("scopes_hash")
+  connectedAt       DateTime? @map("connected_at")
+  revokedAt         DateTime? @map("revoked_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, provider])
+  @@map("integration_connections")
+}
+
+// ============================================================
+// AUDITORIA
+// ============================================================
+
+model AuditEvent {
+  id            String   @id @default(uuid()) @db.Uuid
+  projectId     String   @map("project_id") @db.Uuid
+  actorId       String   @map("actor_id") @db.Uuid
+  eventType     String   @map("event_type")
+  aggregateType String   @map("aggregate_type")
+  aggregateId   String   @map("aggregate_id") @db.Uuid
+  metadata      Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  actor   Person  @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([projectId, createdAt])
+  @@index([aggregateType, aggregateId])
+  @@map("audit_events")
+}

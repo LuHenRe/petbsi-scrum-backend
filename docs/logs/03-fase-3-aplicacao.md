@@ -1,0 +1,3 @@
+- Dia: 10/09.
+- Entregas: src/application/ports/ (repositories + gateways auth/email/calendar/file-storage), 13 casos de uso UC01–UC12 (arquivos por subpasta), barrel, testes A01–A12 (12 arquivos + fakes/).
+- Correções de coerência na revisão: BacklogItem.orderIndex/updatePriority/reorder/moveTo(..., reason); WorkflowColumnRepository; SprintStatus.is; Sprint.defineGoal; SyncStatus.LOCAL; NotificationStatus.is/SyncStatus.is; resolveBlocker recomputando bloqueios; guardas de plan(); idempotência em sendNotification; retry/FAILED no upload.
