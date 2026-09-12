@@ -1,1 +1,0 @@
-# ptebsi-scrum-frontend
